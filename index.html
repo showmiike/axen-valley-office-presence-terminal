@@ -230,43 +230,78 @@
 
     function closeDashboard() { document.getElementById('personalDashboard').style.display = 'none'; }
 
-    function markAttendance() {
-        const id = document.getElementById('empID').value;
-        const name = document.getElementById('empName').value;
-        const manualTime = document.getElementById('manualTime').value;
-        const btn = document.getElementById('submitBtn');
+    async function markAttendance() {
+    const id = document.getElementById('empID').value;
+    const name = document.getElementById('empName').value;
+    const manualTime = document.getElementById('manualTime').value;
+    const btn = document.getElementById('submitBtn');
 
-        if (!id || !name) return alert("ID ebong Name select korun!");
+    if (!id || !name) return alert("ID ebong Name select korun!");
 
-        const now = new Date();
-        const date = now.toLocaleDateString();
-        let finalTime, timeForStatus;
+    const now = new Date();
+    const date = now.toLocaleDateString();
+    let finalTime, timeForStatus;
 
-        if (manualTime) {
-            let [h, m] = manualTime.split(':');
-            finalTime = (h % 12 || 12) + ':' + m + (h >= 12 ? ' PM' : ' AM');
-            timeForStatus = manualTime + ":00";
-        } else {
-            finalTime = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
-            timeForStatus = now.toLocaleTimeString('en-US', { hour12: false });
-        }
+    if (manualTime) {
+        let [h, m] = manualTime.split(':');
+        finalTime = (h % 12 || 12) + ':' + m + (h >= 12 ? ' PM' : ' AM');
+        timeForStatus = manualTime + ":00";
+    } else {
+        finalTime = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+        timeForStatus = now.toLocaleTimeString('en-US', { hour12: false });
+    }
 
-        const fullInfo = `${id} - ${name}`;
-        if (records.find(r => r.name === fullInfo && r.date === date)) return alert("Already marked today!");
+    const fullInfo = `${id} - ${name}`;
+    const status = (timeForStatus > OFFICE_START_TIME) ? "Late" : "Present";
 
-        allRecords.unshift({ name: fullInfo, time: finalTime, date: date, status: (timeForStatus > OFFICE_START_TIME) ? "Late" : "Present" });
+    // Double entry check
+    if (allRecords.find(r => r.name === fullInfo && r.date === date)) {
+        return alert("Already marked today!");
+    }
+
+    const newRecord = { name: fullInfo, time: finalTime, date: date, status: status };
+
+    // --- GOOGLE SHEET-E PATHANO ---
+    const scriptURL = 'https://script.google.com/macros/s/AKfycbzEcvkimrak7uqc2ahCiSU3BaJ_QhxcH1r8OFz5JDVdpNBw-X7TOblYbVoJjJM_ebah/exec'; // <--- Sheet theke pawa link-ti ekhane din
+
+    try {
+        // Button-ti disable kore loading state dekhano
+        btn.disabled = true;
+        btn.innerText = "Processing...";
+
+        await fetch(scriptURL, {
+            method: 'POST',
+            mode: 'no-cors',
+            cache: 'no-cache',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newRecord)
+        });
+
+        // Local storage ebong UI update
+        allRecords.unshift(newRecord);
         localStorage.setItem('office_attendance', JSON.stringify(allRecords));
         
-        filterTodayRecords(); renderTable(); closeDashboard();
+        filterTodayRecords(); 
+        renderTable(); 
+        if (typeof closeDashboard === "function") closeDashboard();
 
-        btn.style.background = "#38a169"; btn.innerText = "Done! ✓";
+        btn.style.background = "#38a169"; 
+        btn.innerText = "Done! ✓";
+
+    } catch (error) {
+        console.error('Error!', error.message);
+        alert("Server error! But local entry saved.");
+    } finally {
         setTimeout(() => {
-            btn.style.background = "#3182ce"; btn.innerText = "Submit Present";
+            btn.disabled = false;
+            btn.style.background = "#3182ce"; 
+            btn.innerText = "Submit Present";
             document.getElementById('empID').selectedIndex = 0;
             document.getElementById('empName').selectedIndex = 0;
             document.getElementById('manualTime').value = "";
-        }, 1000);
+        }, 1500);
     }
+}
 
     function renderTable() {
         document.getElementById('attendanceBody').innerHTML = records.map(r => `
