@@ -155,156 +155,114 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script>
-    const OFFICE_START_TIME = "09:30:00"; 
-    const ADMIN_USER = "axvadmin";
-    const ADMIN_PASS = "axvpassword";
 
+<script>
+    // --- Initial Configuration ---
+    const OFFICE_START_TIME = "09:30:00";
     let allRecords = JSON.parse(localStorage.getItem('office_attendance')) || [];
-    let records = []; 
+    let records = [];
 
     function filterTodayRecords() {
         const today = new Date().toLocaleDateString();
         records = allRecords.filter(r => r.date === today);
     }
 
-    // --- Admin Auth Logic ---
-    function openAdminModal() {
-        document.getElementById('adminModal').style.display = 'flex';
-    }
+    // --- Core Attendance Function ---
+    async function markAttendance() {
+        const id = document.getElementById('empID').value;
+        const name = document.getElementById('empName').value;
+        const manualTime = document.getElementById('manualTime').value;
+        const btn = document.getElementById('submitBtn');
 
-    function closeAdminModal() {
-        document.getElementById('adminModal').style.display = 'none';
-        document.getElementById('adminUser').value = "";
-        document.getElementById('adminPass').value = "";
-    }
+        if (!id || !name) return alert("ID ebong Name select korun!");
 
-    function verifyAdmin() {
-        if (document.getElementById('adminUser').value === ADMIN_USER && 
-            document.getElementById('adminPass').value === ADMIN_PASS) {
-            
-            document.getElementById('adminControls').style.display = 'block';
-            document.getElementById('loginPrompt').style.display = 'none';
-            closeAdminModal();
-            alert("Admin Login Successful!");
+        const now = new Date();
+        const date = now.toLocaleDateString();
+        let finalTime, timeForStatus;
+
+        if (manualTime) {
+            let [h, m] = manualTime.split(':');
+            finalTime = (h % 12 || 12) + ':' + m + (h >= 12 ? ' PM' : ' AM');
+            timeForStatus = manualTime + ":00";
         } else {
-            alert("Wrong credentials!");
+            finalTime = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+            timeForStatus = now.toLocaleTimeString('en-US', { hour12: false });
+        }
+
+        const fullInfo = `${id} - ${name}`;
+        const status = (timeForStatus > OFFICE_START_TIME) ? "Late" : "Present";
+
+        // Double entry check
+        if (allRecords.find(r => r.name === fullInfo && r.date === date)) {
+            return alert("Already marked today!");
+        }
+
+        const newRecord = { name: fullInfo, time: finalTime, date: date, status: status };
+        const scriptURL = 'https://script.google.com/macros/s/AKfycbzEcvkimrak7uqc2ahCiSU3BaJ_QhxcH1r8OFz5JDVdpNBw-X7TOblYbVoJjJM_ebah/exec';
+
+        try {
+            btn.disabled = true;
+            btn.innerText = "Processing...";
+
+            // Google Sheet-e pathano
+            await fetch(scriptURL, {
+                method: 'POST',
+                mode: 'no-cors',
+                cache: 'no-cache',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newRecord)
+            });
+
+            // UI update
+            allRecords.unshift(newRecord);
+            localStorage.setItem('office_attendance', JSON.stringify(allRecords));
+            
+            filterTodayRecords(); 
+            renderTable(); 
+            if (typeof closeDashboard === "function") closeDashboard();
+
+            btn.style.background = "#38a169"; 
+            btn.innerText = "Done! ✓";
+
+        } catch (error) {
+            console.error('Error!', error.message);
+            alert("Data sync-e somossya hoyeche, kintu local record save hoyeche.");
+        } finally {
+            setTimeout(() => {
+                btn.disabled = false;
+                btn.style.background = "#3182ce"; 
+                btn.innerText = "Submit Present";
+                document.getElementById('empID').selectedIndex = 0;
+                document.getElementById('empName').selectedIndex = 0;
+                document.getElementById('manualTime').value = "";
+            }, 1500);
         }
     }
 
-    function logoutAdmin() {
-        document.getElementById('adminControls').style.display = 'none';
-        document.getElementById('loginPrompt').style.display = 'block';
+    // --- Google Sheet theke Data Load kora (Sync) ---
+    async function loadDataFromSheet() {
+        const scriptURL = 'https://script.google.com/macros/s/AKfycbxaBKSjG6fSXl2UYvFqgkjwGCQsCemE2eE7py1ThG9jnY6ltLNjkGSUf4ySSMPoEYg/exec';
+        try {
+            const response = await fetch(scriptURL);
+            const data = await response.json();
+            
+            // Central data load kora
+            allRecords = data.reverse(); 
+            localStorage.setItem('office_attendance', JSON.stringify(allRecords));
+            filterTodayRecords();
+            renderTable();
+        } catch (error) {
+            console.log("Offline mode: Local storage theke data dekhano hochche.");
+            filterTodayRecords();
+            renderTable();
+        }
     }
-
-    // --- Core Functions ---
-    document.getElementById('empName').addEventListener('change', function() {
-        const name = this.value;
-        const id = document.getElementById('empID').value;
-        if(name && id) showPersonalDashboard(`${id} - ${name}`);
-    });
-
-    function showPersonalDashboard(fullName) {
-        const userRecords = allRecords.filter(r => r.name === fullName);
-        const dashboard = document.getElementById('personalDashboard');
-        document.getElementById('dashTitle').innerText = `Performance: ${fullName.split('-')[1]}`;
-        
-        const total = userRecords.length;
-        const present = userRecords.filter(r => r.status === 'Present').length;
-        const late = userRecords.filter(r => r.status === 'Late').length;
-        const ratio = total > 0 ? ((present / total) * 100).toFixed(0) : 0;
-
-        document.getElementById('userPresent').innerText = present;
-        document.getElementById('userLate').innerText = late;
-        document.getElementById('userRatio').innerText = ratio + "%";
-
-        document.getElementById('userHistoryBody').innerHTML = userRecords.slice(0, 5).map(r => `
-            <tr>
-                <td style="padding: 5px;">${r.date}</td>
-                <td style="padding: 5px;">${r.time}</td>
-                <td style="padding: 5px; color: ${r.status === 'Present' ? '#38a169' : '#e53e3e'}; font-weight:bold;">${r.status}</td>
-            </tr>
-        `).join('');
-        dashboard.style.display = 'block';
-    }
-
-    function closeDashboard() { document.getElementById('personalDashboard').style.display = 'none'; }
-
-    async function markAttendance() {
-    const id = document.getElementById('empID').value;
-    const name = document.getElementById('empName').value;
-    const manualTime = document.getElementById('manualTime').value;
-    const btn = document.getElementById('submitBtn');
-
-    if (!id || !name) return alert("ID ebong Name select korun!");
-
-    const now = new Date();
-    const date = now.toLocaleDateString();
-    let finalTime, timeForStatus;
-
-    if (manualTime) {
-        let [h, m] = manualTime.split(':');
-        finalTime = (h % 12 || 12) + ':' + m + (h >= 12 ? ' PM' : ' AM');
-        timeForStatus = manualTime + ":00";
-    } else {
-        finalTime = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
-        timeForStatus = now.toLocaleTimeString('en-US', { hour12: false });
-    }
-
-    const fullInfo = `${id} - ${name}`;
-    const status = (timeForStatus > OFFICE_START_TIME) ? "Late" : "Present";
-
-    // Double entry check
-    if (allRecords.find(r => r.name === fullInfo && r.date === date)) {
-        return alert("Already marked today!");
-    }
-
-    const newRecord = { name: fullInfo, time: finalTime, date: date, status: status };
-
-    // --- GOOGLE SHEET-E PATHANO ---
-    const scriptURL = 'https://script.google.com/macros/s/AKfycbzEcvkimrak7uqc2ahCiSU3BaJ_QhxcH1r8OFz5JDVdpNBw-X7TOblYbVoJjJM_ebah/exec'; // <--- Sheet theke pawa link-ti ekhane din
-
-    try {
-        // Button-ti disable kore loading state dekhano
-        btn.disabled = true;
-        btn.innerText = "Processing...";
-
-        await fetch(scriptURL, {
-            method: 'POST',
-            mode: 'no-cors',
-            cache: 'no-cache',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(newRecord)
-        });
-
-        // Local storage ebong UI update
-        allRecords.unshift(newRecord);
-        localStorage.setItem('office_attendance', JSON.stringify(allRecords));
-        
-        filterTodayRecords(); 
-        renderTable(); 
-        if (typeof closeDashboard === "function") closeDashboard();
-
-        btn.style.background = "#38a169"; 
-        btn.innerText = "Done! ✓";
-
-    } catch (error) {
-        console.error('Error!', error.message);
-        alert("Server error! But local entry saved.");
-    } finally {
-        setTimeout(() => {
-            btn.disabled = false;
-            btn.style.background = "#3182ce"; 
-            btn.innerText = "Submit Present";
-            document.getElementById('empID').selectedIndex = 0;
-            document.getElementById('empName').selectedIndex = 0;
-            document.getElementById('manualTime').value = "";
-        }, 1500);
-    }
-}
 
     function renderTable() {
-        document.getElementById('attendanceBody').innerHTML = records.map(r => `
+        const body = document.getElementById('attendanceBody');
+        if(!body) return;
+        
+        body.innerHTML = records.map(r => `
             <tr>
                 <td><strong>${r.name}</strong></td>
                 <td>${r.time}</td>
@@ -341,7 +299,7 @@
     }
 
     function executeClear() {
-        if (confirm("Delete all history?")) {
+        if (confirm("Delete all history? (Eti shudhu apnar local browser theke muche felbe)")) {
             localStorage.removeItem('office_attendance');
             allRecords = []; records = []; renderTable();
         }
@@ -354,7 +312,10 @@
         XLSX.writeFile(wb, `Archive_${new Date().toLocaleDateString()}.xlsx`);
     }
 
-    filterTodayRecords(); renderTable();
+    // Window load hobe shobar age
+    window.onload = loadDataFromSheet;
 </script>
 </body>
 </html>
+
+
