@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Axen Valley Office Presence Terminal</title>
+    <link href="https://fonts.cdnfonts.com/css/product-sans" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="bg-overlay"></div>
+
+<div class="container">
+    <!-- Main Attendance Card -->
+    <div class="input-card">
+        <h2 style="margin:0; color: #2d3748;">Axen Valley Office Presence Terminal</h2>
+        <p style="color: #718096; margin-top: 5px;">Mark your daily attendance below</p>
+        
+        <div class="stats-container animate__animated animate__fadeIn">
+            <div class="stat-box">
+                <span class="stat-label">Total Present</span>
+                <span id="statPresent" class="stat-value">0</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-label">Late Arrivals</span>
+                <span id="statLate" class="stat-value">0</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-label">Total Entries (Today)</span>
+                <span id="statTotal" class="stat-value">0</span>
+            </div>
+        </div>
+        
+        <div class="input-row">
+            <div class="select-group">
+                <label>Employee ID</label>
+                <select id="empID">
+                    <option value="" disabled selected>Select ID</option>
+                    <option value="CA-001">CA-001</option>
+                    <option value="CA-002">CA-002</option>
+                    <option value="CA-003">CA-003</option>
+                    <option value="CA-004">CA-004</option>
+                    <option value="CA-005">CA-005</option>
+                    <option value="CA-006">CA-006</option>
+                    <option value="CA-007">CA-007</option>
+                    <option value="CA-008">CA-008</option>
+                    <option value="CA-009">CA-009</option>
+                    <option value="CA-010">CA-010</option>
+                </select>
+            </div>
+
+            <div class="select-group">
+                <label>Employee Name</label>
+                <select id="empName">
+                    <option value="" disabled selected>Select Name</option>
+                    <option value="Najia Islam Nishat">Najia Islam Nishat</option>
+                    <option value="Gopal Saha Shawon">Gopal Saha Shawon</option>
+                    <option value="Md. Sabid Hossain">Md. Sabid Hossain</option>
+                    <option value="Md. Moshail Ahmed">Md. Moshail Ahmed</option>
+                    <option value="Ruhul Amin">Ruhul Amin</option>
+                    <option value="Pijoy Chakraborty">Pijoy Chakraborty</option>
+                    <option value="Fahim Alam">Fahim Alam</option>
+                    <option value="Showmike Mondal Himu">Showmike Mondal Himu</option>
+                    <option value="Mihad Hasan">Mihad Hasan</option>
+                    <option value="Khairul Islam Mahadi">Khairul Islam Mahadi</option>
+                </select>
+            </div>
+
+            <div class="select-group">
+                <label>Entry Time (Optional)</label>
+                <input type="time" id="manualTime" style="padding: 11px 15px; border: 1px solid #cbd5e0; border-radius: 10px; font-size: 16px; outline: none; background: rgba(255, 255, 255, 0.8);">
+            </div>
+
+            <div class="btn-container">
+                <button onclick="markAttendance()" id="submitBtn">Submit Present</button>
+            </div>
+        </div>
+
+        <!-- Personal Dashboard -->
+        <div id="personalDashboard" class="animate__animated animate__fadeIn" style="display: none; margin-top: 20px; border-top: 2px solid #e2e8f0; padding-top: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h3 id="dashTitle" style="margin:0; color: #2d3748; font-size: 16px;">Personal Performance</h3>
+                <button onclick="closeDashboard()" style="background:none; border:none; color:#718096; cursor:pointer; font-size:20px;">×</button>
+            </div>
+            
+            <div class="stats-container" style="margin-top: 15px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+                <div class="stat-box" style="padding: 10px; background: #f0fff4;">
+                    <span class="stat-label" style="font-size: 10px;">Present</span>
+                    <span id="userPresent" class="stat-value" style="font-size: 18px; color: #38a169;">0</span>
+                </div>
+                <div class="stat-box" style="padding: 10px; background: #fff5f5;">
+                    <span class="stat-label" style="font-size: 10px;">Late</span>
+                    <span id="userLate" class="stat-value" style="font-size: 18px; color: #e53e3e;">0</span>
+                </div>
+                <div class="stat-box" style="padding: 10px; background: #ebf8ff;">
+                    <span class="stat-label" style="font-size: 10px;">On-Time %</span>
+                    <span id="userRatio" class="stat-value" style="font-size: 18px; color: #3182ce;">0%</span>
+                </div>
+            </div>
+
+            <div style="margin-top: 15px; max-height: 120px; overflow-y: auto;">
+                <table style="font-size: 12px; width: 100%;">
+                    <tbody id="userHistoryBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Login Modal -->
+    <div id="adminModal" class="modal-overlay">
+        <div class="modal-card animate__animated animate__zoomIn">
+            <h3>Admin Access Required</h3>
+            <div class="input-group">
+                <label>Username</label>
+                <input type="text" id="adminUser" placeholder="Enter username">
+            </div>
+            <div class="input-group">
+                <label>Password</label>
+                <input type="password" id="adminPass" placeholder="Enter password">
+            </div>
+            <div class="modal-actions">
+                <button class="cancel-btn" onclick="closeAdminModal()">Cancel</button>
+                <button class="login-btn" onclick="verifyAdmin()">Login</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Attendance List -->
+    <div class="list-card">
+        <div class="list-header">
+            <h3 style="margin:0; color: #2d3748;">Today's Attendance List</h3>
+            <div id="adminControls" style="display: none;"> <!-- Hidden until Login -->
+                <button class="export-btn" onclick="executeExport()" style="background: #2D7A78;">Download Archive</button>
+                <button class="stats-btn" onclick="generateMonthlyReport()" style="background: #6b46c1; font-size: 12px; padding: 10px 15px; color: white; border: none; border-radius: 8px; cursor: pointer;">Monthly Report</button>
+                <button class="clear-btn" onclick="executeClear()" style="background: #E53E3E;">Clear All Records</button>
+                <button onclick="logoutAdmin()" style="background: #718096; font-size: 12px; padding: 10px 15px; color: white; border: none; border-radius: 8px; cursor: pointer; margin-left: 5px;">Logout</button>
+            </div>
+            <div id="loginPrompt">
+                <button onclick="openAdminModal()" style="background: #3182ce; font-size: 12px; padding: 10px 15px; color: white; border: none; border-radius: 8px; cursor: pointer;">Admin Access</button>
+            </div>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Employee Info</th>
+                    <th>Time</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="attendanceBody"></tbody>
+        </table>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+    const OFFICE_START_TIME = "09:30:00"; 
+    const ADMIN_USER = "axvadmin";
+    const ADMIN_PASS = "axvpassword";
+
+    let allRecords = JSON.parse(localStorage.getItem('office_attendance')) || [];
+    let records = []; 
+
+    function filterTodayRecords() {
+        const today = new Date().toLocaleDateString();
+        records = allRecords.filter(r => r.date === today);
+    }
+
+    // --- Admin Auth Logic ---
+    function openAdminModal() {
+        document.getElementById('adminModal').style.display = 'flex';
+    }
+
+    function closeAdminModal() {
+        document.getElementById('adminModal').style.display = 'none';
+        document.getElementById('adminUser').value = "";
+        document.getElementById('adminPass').value = "";
+    }
+
+    function verifyAdmin() {
+        if (document.getElementById('adminUser').value === ADMIN_USER && 
+            document.getElementById('adminPass').value === ADMIN_PASS) {
+            
+            document.getElementById('adminControls').style.display = 'block';
+            document.getElementById('loginPrompt').style.display = 'none';
+            closeAdminModal();
+            alert("Admin Login Successful!");
+        } else {
+            alert("Wrong credentials!");
+        }
+    }
+
+    function logoutAdmin() {
+        document.getElementById('adminControls').style.display = 'none';
+        document.getElementById('loginPrompt').style.display = 'block';
+    }
+
+    // --- Core Functions ---
+    document.getElementById('empName').addEventListener('change', function() {
+        const name = this.value;
+        const id = document.getElementById('empID').value;
+        if(name && id) showPersonalDashboard(`${id} - ${name}`);
+    });
+
+    function showPersonalDashboard(fullName) {
+        const userRecords = allRecords.filter(r => r.name === fullName);
+        const dashboard = document.getElementById('personalDashboard');
+        document.getElementById('dashTitle').innerText = `Performance: ${fullName.split('-')[1]}`;
+        
+        const total = userRecords.length;
+        const present = userRecords.filter(r => r.status === 'Present').length;
+        const late = userRecords.filter(r => r.status === 'Late').length;
+        const ratio = total > 0 ? ((present / total) * 100).toFixed(0) : 0;
+
+        document.getElementById('userPresent').innerText = present;
+        document.getElementById('userLate').innerText = late;
+        document.getElementById('userRatio').innerText = ratio + "%";
+
+        document.getElementById('userHistoryBody').innerHTML = userRecords.slice(0, 5).map(r => `
+            <tr>
+                <td style="padding: 5px;">${r.date}</td>
+                <td style="padding: 5px;">${r.time}</td>
+                <td style="padding: 5px; color: ${r.status === 'Present' ? '#38a169' : '#e53e3e'}; font-weight:bold;">${r.status}</td>
+            </tr>
+        `).join('');
+        dashboard.style.display = 'block';
+    }
+
+    function closeDashboard() { document.getElementById('personalDashboard').style.display = 'none'; }
+
+    function markAttendance() {
+        const id = document.getElementById('empID').value;
+        const name = document.getElementById('empName').value;
+        const manualTime = document.getElementById('manualTime').value;
+        const btn = document.getElementById('submitBtn');
+
+        if (!id || !name) return alert("ID ebong Name select korun!");
+
+        const now = new Date();
+        const date = now.toLocaleDateString();
+        let finalTime, timeForStatus;
+
+        if (manualTime) {
+            let [h, m] = manualTime.split(':');
+            finalTime = (h % 12 || 12) + ':' + m + (h >= 12 ? ' PM' : ' AM');
+            timeForStatus = manualTime + ":00";
+        } else {
+            finalTime = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+            timeForStatus = now.toLocaleTimeString('en-US', { hour12: false });
+        }
+
+        const fullInfo = `${id} - ${name}`;
+        if (records.find(r => r.name === fullInfo && r.date === date)) return alert("Already marked today!");
+
+        allRecords.unshift({ name: fullInfo, time: finalTime, date: date, status: (timeForStatus > OFFICE_START_TIME) ? "Late" : "Present" });
+        localStorage.setItem('office_attendance', JSON.stringify(allRecords));
+        
+        filterTodayRecords(); renderTable(); closeDashboard();
+
+        btn.style.background = "#38a169"; btn.innerText = "Done! ✓";
+        setTimeout(() => {
+            btn.style.background = "#3182ce"; btn.innerText = "Submit Present";
+            document.getElementById('empID').selectedIndex = 0;
+            document.getElementById('empName').selectedIndex = 0;
+            document.getElementById('manualTime').value = "";
+        }, 1000);
+    }
+
+    function renderTable() {
+        document.getElementById('attendanceBody').innerHTML = records.map(r => `
+            <tr>
+                <td><strong>${r.name}</strong></td>
+                <td>${r.time}</td>
+                <td>${r.date}</td>
+                <td><span class="${r.status === 'Present' ? 'status-present' : 'status-late'}">● ${r.status}</span></td>
+            </tr>
+        `).join('');
+        updateStats();
+    }
+
+    function updateStats() {
+        document.getElementById('statTotal').innerText = records.length;
+        document.getElementById('statPresent').innerText = records.filter(r => r.status === 'Present').length;
+        document.getElementById('statLate').innerText = records.filter(r => r.status === 'Late').length;
+    }
+
+    // --- Admin Actions ---
+    function generateMonthlyReport() {
+        const summary = {};
+        allRecords.forEach(record => {
+            if (!summary[record.name]) summary[record.name] = { total: 0, present: 0, late: 0 };
+            summary[record.name].total++;
+            record.status === 'Present' ? summary[record.name].present++ : summary[record.name].late++;
+        });
+
+        const reportData = Object.keys(summary).map(name => ({
+            "Employee Name": name, "Total": summary[name].total, "Present": summary[name].present, "Late": summary[name].late
+        }));
+
+        const ws = XLSX.utils.json_to_sheet(reportData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Performance");
+        XLSX.writeFile(wb, `Report_${new Date().toLocaleDateString()}.xlsx`);
+    }
+
+    function executeClear() {
+        if (confirm("Delete all history?")) {
+            localStorage.removeItem('office_attendance');
+            allRecords = []; records = []; renderTable();
+        }
+    }
+
+    function executeExport() {
+        const ws = XLSX.utils.json_to_sheet(allRecords);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Archive");
+        XLSX.writeFile(wb, `Archive_${new Date().toLocaleDateString()}.xlsx`);
+    }
+
+    filterTodayRecords(); renderTable();
+</script>
+</body>
+</html>
